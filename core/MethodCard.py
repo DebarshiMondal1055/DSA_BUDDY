@@ -4,6 +4,7 @@ from pydantic import BaseModel,Field
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_openai import ChatOpenAI
 from collections import Counter
+from core.schema import DATA,load_all
 import math
 
 
@@ -181,15 +182,17 @@ async def _one(chain, sem, p, sol):
                 "solutions": "\n\n---\n\n".join(sol["solutions"])[:8000],
             })
             code = "\n".join(sol["solutions"])
-            return {"problem_id": p["problem_id"], "method": card.model_dump(),
-                    "fingerprint": fingerprint(code), "sol_source": sol["source"]}
+            return {"problem_id": p["problem_id"], 
+                    "method": card.model_dump(),
+                    "fingerprint": fingerprint(code),
+                    "sol_source": sol["source"]}
         except Exception as e:
             print(f"fail {p['problem_id']}: {e}")
             return None
 
 async def process(concurrency : int=12):
     from core.schema import laod_all
-    from solutions.ingestion import SOLUTIONS
+    from Ingestion.Get_Solutions import SOLUTIONS
     
     problems={p['problem_id'] : p for p in load_all}
     

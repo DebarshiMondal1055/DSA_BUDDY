@@ -108,7 +108,7 @@ async def _process(chain, sem, p):
 
 async def  getConceptCards(concurrency : int=12) :
     done =set()
-    if CARD.exists :
+    if CARDS.exists :
         with CARDS.open(encoding='utf-8') as f :
             done=[json.loads(l)['problem_id'] for l in f if l.strip()]
             
