@@ -225,4 +225,4 @@ async def process(concurrency : int=12):
     
     
 if __name__=="__main__":
-    process()
+    asyncio.run(process())

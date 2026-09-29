@@ -126,4 +126,4 @@ async def  getConceptCards(concurrency : int=12) :
                         
                         
 if __name__=="__main__":
-    getConceptCards()
+    asyncio.run(getConceptCards())

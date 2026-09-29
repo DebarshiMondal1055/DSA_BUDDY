@@ -92,9 +92,9 @@ class SimilarProblemSearch:
         return [Document(page_content=h.payload.get("steps") or h.payload["reduction"],
                          metadata=h.payload) for h in hits]
 
-    def search(self, query: str, k: int = 12, mode: str = "both",
-               solution_code: str | None = None, per_platform_min: int = 3,
-               difficulty_window: int | None = None):
+    def search(self, query  : str, k: int = 12, mode: str = "both",
+               solution_code: str | None = None, exclude_same_platform: bool = True,
+               per_platform_min:int=3,difficulty_window: int | None = None):
         src = self.resolve(query)
         concept, method, fp = self._build_query(src, solution_code)
         c_text = card_to_text(src["title"], src["platform"] or "unknown", concept)
