@@ -1,4 +1,12 @@
 from __future__ import annotations
+import sys
+from pathlib import Path
+
+# Add project root to sys.path so 'core' module can be imported regardless of execution location
+ROOT = Path(__file__).resolve().parent.parent
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
 import re,json,asyncio
 from pydantic import BaseModel,Field
 from langchain_core.prompts import ChatPromptTemplate
@@ -8,9 +16,13 @@ from core.schema import DATA,load_all
 import math
 
 
+import os
+
 METHODS = DATA/"methods.jsonl"
 
-llm=ChatOpenAI(model='openai:gpt-5-mini',temperature=0.2)
+OPENAI_KEY = os.getenv("OPENAI_API_KEY") or "sk-dummy"
+llm = ChatOpenAI(model='gpt-4o-mini', temperature=0.2, api_key=OPENAI_KEY)
+
 
 METHOD_KEYS = """
 dp/linear, dp/prefix-suffix, dp/knapsack, dp/interval, dp/tree-subtree, dp/rerooting,
@@ -191,25 +203,24 @@ async def _one(chain, sem, p, sol):
             return None
 
 async def process(concurrency : int=12):
-    from core.schema import laod_all
+    from core.schema import load_all
     from Ingestion.Get_Solutions import SOLUTIONS
     
-    problems={p['problem_id'] : p for p in load_all}
+    problems={p['problem_id'] : p for p in load_all()}
     
     sols={}
-    with SOLUTIONS.open(encoding='utf-8') as f:
+    if SOLUTIONS.exists():
+        with SOLUTIONS.open(encoding='utf-8') as f:
             for line in f:
                 if line.strip():
                     r = json.loads(line)
                     sols.setdefault(r["problem_id"], r)
  
     done=set()
-    if METHODS.exists:
+    if METHODS.exists():
         with METHODS.open(encoding='utf-8') as f :
-            done=[json.loads(l)['problem_id'] for l in f if l.strip()]
+            done={json.loads(l)['problem_id'] for l in f if l.strip()}
             
-    
-    todos=[]
     todo = [(problems[pid], s) for pid, s in sols.items() if pid in problems and pid not in done]
 
     chain=PROMPT | llm.with_structured_output(MethodCard)

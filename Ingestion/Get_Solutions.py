@@ -1,4 +1,12 @@
 from __future__ import annotations
+import sys
+from pathlib import Path
+
+# Add project root to sys.path so 'core' module can be imported regardless of execution location
+ROOT = Path(__file__).resolve().parent.parent
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
 import json, re, asyncio
 from datasets import load_dataset
 from core.schema import DATA,load_all

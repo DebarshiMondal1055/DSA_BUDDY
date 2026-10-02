@@ -1,13 +1,24 @@
 from __future__ import annotations
+import sys
+from pathlib import Path
+
+# Add project root to sys.path so 'core' module can be imported regardless of execution location
+ROOT = Path(__file__).resolve().parent.parent
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+import os
 from langchain_core.prompts import ChatPromptTemplate
 from pydantic import BaseModel,Field
 import re,pathlib,asyncio,json
 from core.schema import DATA, load_all
 from langchain_openai import ChatOpenAI
 
-model=ChatOpenAI(model='openai:gpt-5-mini',temperature=0.2)
+OPENAI_KEY = os.getenv("OPENAI_API_KEY") or "sk-dummy"
+model = ChatOpenAI(model='gpt-4o-mini', temperature=0.2, api_key=OPENAI_KEY)
 
 CARDS = DATA / "cards.jsonl"
+
 
 class ConceptCard(BaseModel):
     core_technique: str = Field(description="Primary algorithm/paradigm, e.g. 'rerooting tree DP', 'monotonic stack', 'binary search on answer'")
@@ -21,7 +32,7 @@ class ConceptCard(BaseModel):
     pitfalls: list[str] = Field(default_factory=list, max_length=3)
 
 
-VOCABULARY ="""two-pointers, sliding-window, prefix-sums, binary-search, binary-search-on-answer,
+VOCABULARY = """two-pointers, sliding-window, prefix-sums, binary-search, binary-search-on-answer,
 ternary-search, sorting, greedy, exchange-argument, dp-linear, dp-knapsack, dp-interval,
 dp-bitmask, dp-digit, dp-tree, dp-rerooting, dp-on-broken-profile, dp-optimization-cht,
 divide-and-conquer, dnc-optimization, graph-bfs, graph-dfs, shortest-paths, mst,
@@ -32,6 +43,8 @@ aho-corasick, manacher, number-theory, modular-arithmetic, combinatorics, inclus
 probability, expected-value, matrix-exponentiation, ntt-fft, game-theory, sprague-grundy,
 geometry, convex-hull, bitmask-enumeration, meet-in-the-middle, sqrt-decomposition,
 randomization, constructive, interactive, simulation, implementation"""
+
+VOCAB = VOCABULARY
 
 
 PROMPT = ChatPromptTemplate.from_messages([
@@ -53,23 +66,13 @@ PROMPT = ChatPromptTemplate.from_messages([
 ])
 
 
-def build_chain():
-    model.with_structured_output(ConceptCard)
-    return PROMPT | model
+def build_chain(model_name: str = "gpt-4o-mini"):
+    k = os.getenv("OPENAI_API_KEY") or "sk-dummy"
+    m = model_name.replace("openai:", "")
+    llm_instance = ChatOpenAI(model=m, temperature=0.2, api_key=k)
+    return PROMPT | llm_instance.with_structured_output(ConceptCard)
 
 
-def card_to_text(title : str , platform : str,card : dict)-> str:
-    return (
-        f"Technique: {card['core_technique']}. "
-        f"Also: {', '.join(card.get('secondary_techniques') or []) or 'none'}.\n"
-        f"Tags: {', '.join(card.get('canonical_tags') or [])}.\n"
-        f"Task: {card['reduction']}\n"
-        f"Key insight: {card['key_insight']}\n"
-        f"Structures: {', '.join(card.get('data_structures') or []) or 'none'}.\n"
-        f"Complexity: {card['complexity']}. Regime: {card['constraint_regime']}\n"
-        f"Title: {title} ({platform})"
-    )
-    
 
 
 
@@ -107,22 +110,22 @@ async def _process(chain, sem, p):
 
 
 async def  getConceptCards(concurrency : int=12) :
-    done =set()
-    if CARDS.exists :
+    done = set()
+    if CARDS.exists():
         with CARDS.open(encoding='utf-8') as f :
-            done=[json.loads(l)['problem_id'] for l in f if l.strip()]
+            done = {json.loads(l)['problem_id'] for l in f if l.strip()}
             
-        todo=[p for p in load_all if p['problem_id'] not in done]
-        chain=build_chain()
-        sem=asyncio.Semaphore(concurrency)
-        with CARDS.open('a',encoding='utf-8') as out :
-            for i in range(0,len(todo),200):
-                batch=todo[i:i+200]
-                for r in await asyncio.gather(*[_process(chain, sem, p) for p in batch]):
-                    if r :
-                        out.write(json.dumps(r, ensure_ascii=False) + "\n")
-                        out.flush()
-                        print(f"distilled {min(i + 200, len(todo))}/{len(todo)}")
+    todo = [p for p in load_all() if p['problem_id'] not in done]
+    chain = build_chain()
+    sem = asyncio.Semaphore(concurrency)
+    with CARDS.open('a', encoding='utf-8') as out :
+        for i in range(0, len(todo), 200):
+            batch = todo[i:i+200]
+            for r in await asyncio.gather(*[_process(chain, sem, p) for p in batch]):
+                if r :
+                    out.write(json.dumps(r, ensure_ascii=False) + "\n")
+                    out.flush()
+                    print(f"distilled {min(i + 200, len(todo))}/{len(todo)}")
                         
                         
 if __name__=="__main__":

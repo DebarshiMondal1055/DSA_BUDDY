@@ -1,5 +1,12 @@
 """Codeforces: official API gives metadata+tags+rating; statements need scraping."""
 from __future__ import annotations
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
 import time, pathlib, requests
 from bs4 import BeautifulSoup
 from core.schema import Problem, DATA, clean_text, normalize_difficulty, write_jsonl
@@ -34,7 +41,6 @@ def fetch_statement(contest_id: int, index: str) -> str | None:
         return None
     for junk in node.select("div.sample-tests, div.header"):
         junk.decompose()
-    # $$$...$$$ math survives as literal text, which is fine — the LLM reads it
     return clean_text(node.get_text("\n"))
 
 

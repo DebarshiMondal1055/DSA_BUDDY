@@ -19,7 +19,7 @@ class Problem :
     tags : list[str]=field(default_factory=list)
     samples: list[str]=field(default_factory=list)
     
-    def to_json()->str :
+    def to_json(self)->str :
         return json.dumps(asdict(self),ensure_ascii=True)
     
     
@@ -35,6 +35,10 @@ def normalise_difficulty(platform : str,raw) -> float :
     if platform == "leetcode":
         return {"Easy": 15, "Medium": 45, "Hard": 75}.get(raw)
     return None
+
+normalize_difficulty = normalise_difficulty
+Path = pathlib.Path
+
 
 _WS = re.compile(r"[ \t]+")
 _NL = re.compile(r"\n{3,}")
@@ -56,7 +60,7 @@ def write_jsonl(path: pathlib.Path, problems) -> None:
 def read_jsonl(path: pathlib.Path) -> list[dict]:
     if not path.exists():
         return []
-    with path.open(encoding="utf-8") as f:
+    with path.open('r',encoding="utf-8") as f:
         return [json.loads(l) for l in f if l.strip()]
  
  

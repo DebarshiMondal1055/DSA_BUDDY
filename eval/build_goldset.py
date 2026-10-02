@@ -13,6 +13,14 @@ reported and skipped so a typo doesn't silently become a "miss" in eval.
     python -m eval.build_goldset --symmetric   # also add the reverse direction
 """
 from __future__ import annotations
+import sys
+from pathlib import Path
+
+# Add project root to sys.path so 'core' module can be imported regardless of execution location
+ROOT = Path(__file__).resolve().parent.parent
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
 import argparse, json
 from collections import defaultdict
 from core.schema import DATA, load_all

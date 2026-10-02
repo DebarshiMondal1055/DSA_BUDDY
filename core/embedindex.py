@@ -1,32 +1,46 @@
 from __future__ import annotations
+import sys
+from pathlib import Path
+
+# Add project root to sys.path so 'core' module can be imported regardless of execution location
+ROOT = Path(__file__).resolve().parent.parent
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
 from langchain_openai import ChatOpenAI,OpenAIEmbeddings
 from langchain_core.documents import Document
 from qdrant_client import QdrantClient
 from qdrant_client.http import models as qm
 from core.schema import DATA,load_all
 from core.Distillation import CARDS,card_to_text
-from core.MethodCard import MethodCard,method_to_text
+from core.MethodCard import METHODS,method_to_text
 import json,re
 import pickle
+
+import os
 
 COLLECTION = "dsa_problems"
 QDRANT_URL = "http://localhost:6333"
 DIM = 1536
 
-model=OpenAIEmbeddings(model='openai-gpt-4',frequency=0.3)
+def get_embeddings():
+    key = os.getenv("OPENAI_API_KEY") or "sk-dummy"
+    return OpenAIEmbeddings(model="text-embedding-3-small", dimensions=DIM, api_key=key)
+
 
 
 def _load(path):
-    if not path.exists:
+    if not path.exists():
         return {}
     with path.open("r",encoding='utf-8') as f:
         return {json.loads(l)['problem_id']:json.loads(l) for l in f if l.strip()}
     
 def build_records():
     problems={p['problem_id']:p for p in load_all()}
-    cards,methods=_load(CARDS),_load(MethodCard) 
+    cards,methods=_load(CARDS),_load(METHODS) 
     records=[]
-    for pid,p in problems :
+    for pid,p in problems.items():
+
         c=(cards.get(pid) or {}).get("card")
         if not c :
             continue
@@ -66,8 +80,9 @@ def main(batch: int =128):
     records=build_records()
     nm=sum(1 for r in records if r["method_text"])
     print(f"{len(records)} problems, {nm} with a method view")
-    model=OpenAIEmbeddings(model='openai-gpt-4',dimensions=DIM)
+    model = get_embeddings()
     client = QdrantClient(url=QDRANT_URL, timeout=120)
+
     if client.collection_exists(COLLECTION):
         client.delete_collection(COLLECTION)
     client.create_collection(

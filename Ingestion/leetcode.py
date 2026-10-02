@@ -1,5 +1,13 @@
 """LeetCode via the public GraphQL endpoint. Premium problems return null content."""
 from __future__ import annotations
+import sys
+from pathlib import Path
+
+# Add project root to sys.path so 'core' module can be imported regardless of execution location
+ROOT = Path(__file__).resolve().parent.parent
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
 import time, json, requests
 from bs4 import BeautifulSoup
 from core.schema import Problem, DATA, clean_text, normalize_difficulty, write_jsonl

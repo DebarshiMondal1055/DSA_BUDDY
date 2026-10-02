@@ -12,6 +12,14 @@ Gold set construction (eval/build_goldset.py writes data/goldset.json):
 Metrics: recall@10 is the one that matters for a "show me similar problems" UX.
 """
 from __future__ import annotations
+import sys
+from pathlib import Path
+
+# Add project root to sys.path so 'core' module can be imported regardless of execution location
+ROOT = Path(__file__).resolve().parent.parent
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
 import json, math
 from core.schema import DATA
 from core.retrieve import SimilarProblemSearch
