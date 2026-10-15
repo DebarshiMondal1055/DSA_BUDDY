@@ -25,28 +25,55 @@ def fetch_index() -> list[dict]:
 
 def fetch_statement(contest_id: int, index: str) -> str | None:
     key = CACHE / f"{contest_id}{index}.html"
+    html = None
+
     if key.exists():
-        html = key.read_text(encoding="utf-8")
-    else:
+        try:
+            cached_text = key.read_text(encoding="utf-8", errors="ignore")
+            if "problem-statement" in cached_text:
+                html = cached_text
+            else:
+                key.unlink(missing_ok=True)
+        except Exception:
+            key.unlink(missing_ok=True)
+
+    if html is None:
         url = f"https://codeforces.com/problemset/problem/{contest_id}/{index}"
-        r = requests.get(url, headers=UA, timeout=30)
-        if r.status_code != 200:
+        try:
+            r = requests.get(url, headers=UA, timeout=30)
+            r.raise_for_status()
+            html = r.text
+        except requests.exceptions.RequestException as e:
+            print(f"Failed {contest_id}/{index}: {e}")
             return None
-        html = r.text
+
+        soup = BeautifulSoup(html, "lxml")
+        node = soup.select_one("div.problem-statement")
+        if not node:
+            return None
+
         key.write_text(html, encoding="utf-8")
-        time.sleep(1.2)                      # be polite or get banned
-    soup = BeautifulSoup(html, "lxml")
-    node = soup.select_one("div.problem-statement")
-    if not node:
-        return None
+        time.sleep(1.2)
+    else:
+        soup = BeautifulSoup(html, "lxml")
+        node = soup.select_one("div.problem-statement")
+        if not node:
+            key.unlink(missing_ok=True)
+            return None
+
     for junk in node.select("div.sample-tests, div.header"):
         junk.decompose()
+
     return clean_text(node.get_text("\n"))
 
 
 def main(limit: int | None = None):
     out = []
-    for i, p in enumerate(fetch_index()):
+    outfile = DATA / "codeforces.jsonl"
+    problems = fetch_index()
+    print(f"Fetched index with {len(problems)} problems.")
+
+    for i, p in enumerate(problems):
         if limit and i >= limit:
             break
         cid, idx = p.get("contestId"), p.get("index")
@@ -66,10 +93,13 @@ def main(limit: int | None = None):
             difficulty=normalize_difficulty("codeforces", rating),
             raw_difficulty=rating,
         ))
-        if len(out) % 200 == 0:
+        if len(out) == 1 or len(out) % 20 == 0:
+            write_jsonl(outfile, out)
+        if len(out) % 200 == 0 and len(out) > 0:
             print(f"codeforces: {len(out)}")
-    write_jsonl(DATA / "codeforces.jsonl", out)
-    print(f"codeforces: wrote {len(out)}")
+
+    write_jsonl(outfile, out)
+    print(f"codeforces: wrote {len(out)} problems to {outfile}")
 
 
 if __name__ == "__main__":

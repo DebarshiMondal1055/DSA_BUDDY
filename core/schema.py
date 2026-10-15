@@ -6,6 +6,9 @@ DATA=pathlib.Path(__file__).resolve().parent.parent/"data"
     
 DATA.mkdir(exist_ok=True)
 
+JSONL=DATA / "jsonl"
+JSONL.mkdir(exist_ok=True,parents=True)
+
 @dataclass
 
 class Problem :

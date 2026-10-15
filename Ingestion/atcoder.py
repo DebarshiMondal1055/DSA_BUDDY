@@ -2,7 +2,6 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-# Add project root to sys.path so 'core' module can be imported regardless of execution location
 ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
@@ -25,29 +24,54 @@ def fetch_index():
 
 def fetch_statement(contest_id: str, problem_id: str) -> str | None:
     key = CACHE / f"{problem_id}.html"
+    html = None
+
     if key.exists():
-        html = key.read_text(encoding="utf-8")
-    else:
+        try:
+            cached_text = key.read_text(encoding="utf-8", errors="ignore")
+            if "task-statement" in cached_text or "lang-en" in cached_text:
+                html = cached_text
+            else:
+                key.unlink(missing_ok=True)
+        except Exception:
+            key.unlink(missing_ok=True)
+
+    if html is None:
         url = f"https://atcoder.jp/contests/{contest_id}/tasks/{problem_id}?lang=en"
-        r = requests.get(url, headers=UA, timeout=30)
-        if r.status_code != 200:
+        try:
+            r = requests.get(url, headers=UA, timeout=30)
+            r.raise_for_status()
+            html = r.text
+        except requests.exceptions.RequestException as e:
+            print(f"Failed {contest_id}/{problem_id}: {e}")
             return None
-        html = r.text
+
+        soup = BeautifulSoup(html, "lxml")
+        node = soup.select_one("span.lang-en") or soup.select_one("#task-statement")
+        if not node:
+            return None
+
         key.write_text(html, encoding="utf-8")
         time.sleep(1.2)
-    soup = BeautifulSoup(html, "lxml")
-    # AtCoder ships JA and EN side by side; take the English span
-    node = soup.select_one("span.lang-en") or soup.select_one("#task-statement")
-    if not node:
-        return None
+    else:
+        soup = BeautifulSoup(html, "lxml")
+        node = soup.select_one("span.lang-en") or soup.select_one("#task-statement")
+        if not node:
+            key.unlink(missing_ok=True)
+            return None
+
     for junk in node.select("div.part h3 + pre"):   # sample IO blocks
         junk.decompose()
+
     return clean_text(node.get_text("\n"))
 
 
 def main(limit: int | None = None):
     problems, models = fetch_index()
     out = []
+    outfile = DATA / "atcoder.jsonl"
+    print(f"Fetched index with {len(problems)} problems.")
+
     for i, p in enumerate(problems):
         if limit and i >= limit:
             break
@@ -66,10 +90,13 @@ def main(limit: int | None = None):
             difficulty=normalize_difficulty("atcoder", diff),
             raw_difficulty=diff,
         ))
-        if len(out) % 200 == 0:
+        if len(out) == 1 or len(out) % 20 == 0:
+            write_jsonl(outfile, out)
+        if len(out) % 200 == 0 and len(out) > 0:
             print(f"atcoder: {len(out)}")
-    write_jsonl(DATA / "atcoder.jsonl", out)
-    print(f"atcoder: wrote {len(out)}")
+
+    write_jsonl(outfile, out)
+    print(f"atcoder: wrote {len(out)} problems to {outfile}")
 
 
 if __name__ == "__main__":

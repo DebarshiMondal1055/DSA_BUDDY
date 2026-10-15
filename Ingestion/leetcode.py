@@ -59,20 +59,31 @@ def fetch_index() -> list[dict]:
 
 def fetch_statement(slug: str) -> str | None:
     key = CACHE / f"{slug}.html"
+
     if key.exists():
         html = key.read_text(encoding="utf-8")
+
     else:
-        content = gql(DETAIL_Q, {"titleSlug": slug})["question"]["content"]
+        try:
+            result = gql(DETAIL_Q, {"titleSlug": slug})
+            content = result["question"]["content"]
+        except (requests.exceptions.RequestException, KeyError, TypeError) as e:
+            print(f"Failed {slug}: {e}")
+            return None
+
         if not content:
             return None
+
         html = content
         key.write_text(html, encoding="utf-8")
-        time.sleep(0.8)
-    soup = BeautifulSoup(html, "lxml")
-    for junk in soup.select("pre"):        # example IO blocks
-        junk.decompose()
-    return clean_text(soup.get_text("\n"))
+        time.sleep(1.2)
 
+    soup = BeautifulSoup(html, "lxml")
+
+    for junk in soup.select("pre"):
+        junk.decompose()
+
+    return clean_text(soup.get_text("\n"))
 
 def main(limit: int | None = None):
     out = []
