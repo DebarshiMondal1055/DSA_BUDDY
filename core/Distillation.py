@@ -12,10 +12,10 @@ from langchain_core.prompts import ChatPromptTemplate
 from pydantic import BaseModel,Field
 import re,pathlib,asyncio,json
 from core.schema import DATA, load_all
-from langchain_openai import ChatOpenAI
+from models import llm
 
-OPENAI_KEY = os.getenv("OPENAI_API_KEY") or "sk-dummy"
-model = ChatOpenAI(model='gpt-4o-mini', temperature=0.2, api_key=OPENAI_KEY)
+
+model = llm
 
 CARDS = DATA / "cards.jsonl"
 
@@ -67,10 +67,8 @@ PROMPT = ChatPromptTemplate.from_messages([
 
 
 def build_chain(model_name: str = "gpt-4o-mini"):
-    k = os.getenv("OPENAI_API_KEY") or "sk-dummy"
-    m = model_name.replace("openai:", "")
-    llm_instance = ChatOpenAI(model=m, temperature=0.2, api_key=k)
-    return PROMPT | llm_instance.with_structured_output(ConceptCard)
+
+    return PROMPT | model.with_structured_output(ConceptCard)
 
 
 

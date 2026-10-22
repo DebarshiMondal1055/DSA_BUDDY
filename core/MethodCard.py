@@ -13,6 +13,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_openai import ChatOpenAI
 from collections import Counter
 from core.schema import DATA,load_all
+from models.chat_model import llm
 import math
 
 
@@ -20,8 +21,7 @@ import os
 
 METHODS = DATA/"methods.jsonl"
 
-OPENAI_KEY = os.getenv("OPENAI_API_KEY") or "sk-dummy"
-llm = ChatOpenAI(model='gpt-4o-mini', temperature=0.2, api_key=OPENAI_KEY)
+
 
 
 METHOD_KEYS = """
@@ -204,7 +204,7 @@ async def _one(chain, sem, p, sol):
 
 async def process(concurrency : int=12):
     from core.schema import load_all
-    from Ingestion.Get_Solutions import SOLUTIONS
+    from Ingestion.get_solutions import SOLUTIONS
     
     problems={p['problem_id'] : p for p in load_all()}
     

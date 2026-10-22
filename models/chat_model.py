@@ -13,4 +13,5 @@ prompt = ChatPromptTemplate.from_messages([
 chain = prompt | llm | StrOutputParser()
 
 if __name__ == "__main__":
-    print(chain.invoke({"input": "Write a code to find the factorial of a number in Python."}))
+    print(chain.invoke({"input": "Write a code to find the factorial of a number in Python."}))
+
