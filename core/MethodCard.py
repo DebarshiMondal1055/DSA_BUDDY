@@ -186,54 +186,81 @@ def method_to_text(title: str, platform: str, m: dict) -> str:
 async def _one(chain, sem, p, sol):
     async with sem:
         try:
+            editorial = (sol.get("editorial") or "none")[:4000]
+            solutions_text = "\n\n---\n\n".join(sol.get("solutions") or [])[:8000]
             card = await chain.ainvoke({
                 "keys": METHOD_KEYS,
-                "title": p["title"],
-                "statement": p["statement"][:4000],
-                "editorial": (sol.get("editorial") or "none")[:4000],
-                "solutions": "\n\n---\n\n".join(sol["solutions"])[:8000],
+                "title": p.get("title", ""),
+                "statement": p.get("statement", "")[:4000],
+                "editorial": editorial,
+                "solutions": solutions_text,
             })
-            code = "\n".join(sol["solutions"])
-            return {"problem_id": p["problem_id"], 
-                    "method": card.model_dump(),
-                    "fingerprint": fingerprint(code),
-                    "sol_source": sol["source"]}
+            code = "\n".join(sol.get("solutions") or [])
+            card_dict = card.model_dump() if hasattr(card, "model_dump") else card
+            return {
+                "problem_id": p["problem_id"],
+                "method": card_dict,
+                "fingerprint": fingerprint(code),
+                "sol_source": sol.get("source", "unknown"),
+            }
         except Exception as e:
-            print(f"fail {p['problem_id']}: {e}")
+            print(f"fail {p.get('problem_id')}: {type(e).__name__}: {e}")
             return None
 
-async def process(concurrency : int=12):
+
+async def process(concurrency: int = 1, limit: int | None = None):
     from core.schema import load_all
     from Ingestion.get_solutions import SOLUTIONS
-    
-    problems={p['problem_id'] : p for p in load_all()}
-    
-    sols={}
+
+    problems = {p["problem_id"]: p for p in load_all()}
+
+    sols = {}
     if SOLUTIONS.exists():
-        with SOLUTIONS.open(encoding='utf-8') as f:
+        with SOLUTIONS.open(encoding="utf-8") as f:
             for line in f:
                 if line.strip():
                     r = json.loads(line)
                     sols.setdefault(r["problem_id"], r)
- 
-    done=set()
-    if METHODS.exists():
-        with METHODS.open(encoding='utf-8') as f :
-            done={json.loads(l)['problem_id'] for l in f if l.strip()}
-            
-    todo = [(problems[pid], s) for pid, s in sols.items() if pid in problems and pid not in done]
 
-    chain=PROMPT | llm.with_structured_output(MethodCard)
-    sem=asyncio.Semaphore(concurrency)
+    done = set()
+    if METHODS.exists():
+        with METHODS.open(encoding="utf-8") as f:
+            done = {json.loads(l)["problem_id"] for l in f if l.strip()}
+
+    todo = [(problems[pid], s) for pid, s in sols.items() if pid in problems and pid not in done]
+    if limit is not None:
+        todo = todo[:limit]
+
+    print(f"Methods: {len(problems)} problems loaded, {len(done)} already done, {len(todo)} to process.")
+    if not todo:
+        print("Nothing to process.")
+        return
+
+    # Use low temperature for structured output extraction
+    method_llm = llm.bind(temperature=0.1) if hasattr(llm, "bind") else llm
+    chain = PROMPT | method_llm.with_structured_output(MethodCard)
+    sem = asyncio.Semaphore(concurrency)
+
+    total = len(todo)
+    done_count = 0
     with METHODS.open("a", encoding="utf-8") as out:
-        for i in range(0, len(todo), 200):
-            batch = todo[i:i + 200]
-            for r in await asyncio.gather(*[_one(chain, sem, p, s) for p, s in batch]):
-                if r:
-                    out.write(json.dumps(r, ensure_ascii=False) + "\n")
-            out.flush()
-            print(f"methods {min(i + 200, len(todo))}/{len(todo)}")
-    
-    
-if __name__=="__main__":
-    asyncio.run(process())
+        for p, s in todo:
+            pid = p.get("problem_id", "")
+            r = await _one(chain, sem, p, s)
+            done_count += 1
+            if r:
+                out.write(json.dumps(r, ensure_ascii=False) + "\n")
+                out.flush()
+                keys = (r.get("method") or {}).get("method_keys", [])
+                print(f"[{done_count}/{total}] {pid} -> {keys}")
+            else:
+                print(f"[{done_count}/{total}] {pid} (failed)")
+
+
+if __name__ == "__main__":
+    import argparse
+    parser = argparse.ArgumentParser(description="Extract MethodCards using LLM")
+    parser.add_argument("--limit", type=int, default=None, help="Max problems to process")
+    parser.add_argument("--concurrency", type=int, default=1, help="Async concurrency (default 1 for local Ollama)")
+    args = parser.parse_args()
+    asyncio.run(process(concurrency=args.concurrency, limit=args.limit))

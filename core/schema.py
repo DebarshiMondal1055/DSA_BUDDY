@@ -69,6 +69,6 @@ def read_jsonl(path: pathlib.Path) -> list[dict]:
  
 def load_all() -> list[dict]:
     out = []
-    for name in ("codeforces.jsonl", "leetcode.jsonl", "atcoder.jsonl"):
+    for name in ("codeforces.jsonl","leetcode.jsonl",'atcoder.jsonl'):
         out += read_jsonl(DATA / name)
     return out
