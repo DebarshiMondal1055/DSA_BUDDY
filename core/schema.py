@@ -6,8 +6,7 @@ DATA=pathlib.Path(__file__).resolve().parent.parent/"data"
     
 DATA.mkdir(exist_ok=True)
 
-JSONL=DATA / "jsonl"
-JSONL.mkdir(exist_ok=True,parents=True)
+JSONL = DATA
 
 @dataclass
 
@@ -61,14 +60,26 @@ def write_jsonl(path: pathlib.Path, problems) -> None:
  
 
 def read_jsonl(path: pathlib.Path) -> list[dict]:
+    path = pathlib.Path(path)
     if not path.exists():
-        return []
-    with path.open('r',encoding="utf-8") as f:
+        fallback = DATA / path.name
+        if fallback.exists():
+            path = fallback
+        else:
+            return []
+    with path.open('r', encoding="utf-8") as f:
         return [json.loads(l) for l in f if l.strip()]
  
- 
-def load_all() -> list[dict]:
+def load_all(files: list[str] | tuple[str, ...] | str | None = None) -> list[dict]:
+    if files is None:
+        file_list = ("codeforces.jsonl", "leetcode.jsonl", "atcoder.jsonl")
+    elif isinstance(files, str):
+        file_list = [files]
+    else:
+        file_list = files
+
     out = []
-    for name in ("codeforces.jsonl","leetcode.jsonl",'atcoder.jsonl'):
-        out += read_jsonl(DATA / name)
+    for name in file_list:
+        p = DATA / name if not isinstance(name, pathlib.Path) else name
+        out += read_jsonl(p)
     return out

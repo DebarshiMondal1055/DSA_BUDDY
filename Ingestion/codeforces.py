@@ -8,7 +8,7 @@ ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-import time, pathlib, requests
+import time, requests
 from bs4 import BeautifulSoup
 from core.schema import Problem, DATA, clean_text, normalize_difficulty, write_jsonl
 

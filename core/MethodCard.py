@@ -19,7 +19,8 @@ import math
 
 import os
 
-METHODS = DATA/"methods.jsonl"
+METHODS = DATA / "methods.jsonl"
+SOLUTIONS = DATA / "solutions.jsonl"
 
 
 
@@ -204,15 +205,25 @@ async def _one(chain, sem, p, sol):
                 "sol_source": sol.get("source", "unknown"),
             }
         except Exception as e:
-            print(f"fail {p.get('problem_id')}: {type(e).__name__}: {e}")
+            print(f"fail {p.get('problem_id')}: {type(e).__name__}: {e}", flush=True)
             return None
 
 
-async def process(concurrency: int = 1, limit: int | None = None):
+async def process(concurrency: int = 1, limit: int | None = None, platform: str | None = None):
     from core.schema import load_all
-    from Ingestion.get_solutions import SOLUTIONS
 
     problems = {p["problem_id"]: p for p in load_all()}
+    if platform:
+        norm = platform.strip().lower()
+        alias = {
+            "leetcode": "leetcode", "lc": "leetcode",
+            "codeforces": "codeforces", "cf": "codeforces",
+            "atcoder": "atcoder", "ac": "atcoder",
+        }.get(norm, norm)
+        problems = {
+            pid: p for pid, p in problems.items()
+            if p.get("platform", "").lower() == alias or pid.startswith(f"{norm}:")
+        }
 
     sols = {}
     if SOLUTIONS.exists():
@@ -228,12 +239,13 @@ async def process(concurrency: int = 1, limit: int | None = None):
             done = {json.loads(l)["problem_id"] for l in f if l.strip()}
 
     todo = [(problems[pid], s) for pid, s in sols.items() if pid in problems and pid not in done]
+    total_todo = len(todo)
     if limit is not None:
         todo = todo[:limit]
 
-    print(f"Methods: {len(problems)} problems loaded, {len(done)} already done, {len(todo)} to process.")
+    print(f"Methods: {len(problems)} problems loaded, {len(done)} already done, {total_todo} eligible ({len(todo)} to process).", flush=True)
     if not todo:
-        print("Nothing to process.")
+        print("Nothing to process.", flush=True)
         return
 
     # Use low temperature for structured output extraction
@@ -252,9 +264,9 @@ async def process(concurrency: int = 1, limit: int | None = None):
                 out.write(json.dumps(r, ensure_ascii=False) + "\n")
                 out.flush()
                 keys = (r.get("method") or {}).get("method_keys", [])
-                print(f"[{done_count}/{total}] {pid} -> {keys}")
+                print(f"[{done_count}/{total}] {pid} -> {keys}", flush=True)
             else:
-                print(f"[{done_count}/{total}] {pid} (failed)")
+                print(f"[{done_count}/{total}] {pid} (failed)", flush=True)
 
 
 if __name__ == "__main__":
@@ -262,5 +274,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Extract MethodCards using LLM")
     parser.add_argument("--limit", type=int, default=None, help="Max problems to process")
     parser.add_argument("--concurrency", type=int, default=1, help="Async concurrency (default 1 for local Ollama)")
+    parser.add_argument("--platform", type=str, default=None, help="Filter by platform (e.g. leetcode, codeforces, atcoder)")
     args = parser.parse_args()
-    asyncio.run(process(concurrency=args.concurrency, limit=args.limit))
+    asyncio.run(process(concurrency=args.concurrency, limit=args.limit, platform=args.platform))

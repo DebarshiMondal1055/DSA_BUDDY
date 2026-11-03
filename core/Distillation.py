@@ -7,15 +7,11 @@ ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-import os
+import os, json, asyncio, re
+from pydantic import BaseModel, Field
 from langchain_core.prompts import ChatPromptTemplate
-from pydantic import BaseModel,Field
-import re,pathlib,asyncio,json
 from core.schema import DATA, load_all
-from models import llm
-
-
-model = llm
+from models.chat_model import llm
 
 CARDS = DATA / "cards.jsonl"
 
@@ -66,13 +62,9 @@ PROMPT = ChatPromptTemplate.from_messages([
 ])
 
 
-def build_chain(model_name: str = "gpt-4o-mini"):
-
-    return PROMPT | model.with_structured_output(ConceptCard)
-
-
-
-
+def build_chain(temperature: float = 0.1):
+    distill_llm = llm.bind(temperature=temperature) if hasattr(llm, "bind") else llm
+    return PROMPT | distill_llm.with_structured_output(ConceptCard)
 
 
 def card_to_text(title: str, platform: str, c: dict) -> str:
@@ -87,44 +79,90 @@ def card_to_text(title: str, platform: str, c: dict) -> str:
         f"Complexity: {c['complexity']}. Regime: {c['constraint_regime']}\n"
         f"Title: {title} ({platform})"
     )
- 
- 
- 
-async def _process(chain, sem, p):
+
+
+async def _process(chain, sem, p: dict):
     async with sem:
         try:
+            diff = p.get("difficulty")
+            diff_str = str(diff) if diff is not None else "unknown"
+            tags_str = ", ".join(p.get("tags") or []) or "none"
             card = await chain.ainvoke({
                 "vocab": VOCABULARY,
-                "title": p["title"],
-                "difficulty": p.get("difficulty"),
-                "tags": ", ".join(p.get("tags") or []) or "none",
-                "statement": p["statement"][:6000],
+                "title": p.get("title", ""),
+                "difficulty": diff_str,
+                "tags": tags_str,
+                "statement": (p.get("statement") or "")[:4000],
             })
-            return {"problem_id": p["problem_id"], "card": card.model_dump()}
+            card_dict = card.model_dump() if hasattr(card, "model_dump") else card
+            return {
+                "problem_id": p.get("problem_id", ""),
+                "card": card_dict,
+            }
         except Exception as e:
-            print(f"fail {p['problem_id']}: {e}")
+            print(f"fail {p.get('problem_id')}: {type(e).__name__}: {e}", flush=True)
             return None
- 
 
 
-async def  getConceptCards(concurrency : int=12) :
+async def process(concurrency: int = 1, limit: int | None = None, platform: str | None = None):
+    from core.schema import load_all
+
+    problems = {p["problem_id"]: p for p in load_all()}
+    if platform:
+        norm = platform.strip().lower()
+        alias = {
+            "leetcode": "leetcode", "lc": "leetcode",
+            "codeforces": "codeforces", "cf": "codeforces",
+            "atcoder": "atcoder", "ac": "atcoder",
+        }.get(norm, norm)
+        problems = {
+            pid: p for pid, p in problems.items()
+            if p.get("platform", "").lower() == alias or pid.startswith(f"{norm}:")
+        }
+
     done = set()
     if CARDS.exists():
-        with CARDS.open(encoding='utf-8') as f :
-            done = {json.loads(l)['problem_id'] for l in f if l.strip()}
-            
-    todo = [p for p in load_all() if p['problem_id'] not in done]
-    chain = build_chain()
+        with CARDS.open(encoding="utf-8") as f:
+            done = {json.loads(l)["problem_id"] for l in f if l.strip()}
+
+    todo = [p for pid, p in problems.items() if pid not in done]
+    total_todo = len(todo)
+    if limit is not None:
+        todo = todo[:limit]
+
+    print(f"Cards: {len(problems)} problems loaded, {len(done)} already done, {total_todo} eligible ({len(todo)} to process).", flush=True)
+    if not todo:
+        print("Nothing to process.", flush=True)
+        return
+
+    chain = build_chain(temperature=0.1)
     sem = asyncio.Semaphore(concurrency)
-    with CARDS.open('a', encoding='utf-8') as out :
-        for i in range(0, len(todo), 200):
-            batch = todo[i:i+200]
-            for r in await asyncio.gather(*[_process(chain, sem, p) for p in batch]):
-                if r :
-                    out.write(json.dumps(r, ensure_ascii=False) + "\n")
-                    out.flush()
-                    print(f"distilled {min(i + 200, len(todo))}/{len(todo)}")
-                        
-                        
-if __name__=="__main__":
-    asyncio.run(getConceptCards())
+
+    total = len(todo)
+    done_count = 0
+    with CARDS.open("a", encoding="utf-8") as out:
+        for p in todo:
+            pid = p.get("problem_id", "")
+            r = await _process(chain, sem, p)
+            done_count += 1
+            if r:
+                out.write(json.dumps(r, ensure_ascii=False) + "\n")
+                out.flush()
+                tech = (r.get("card") or {}).get("core_technique", "ok")
+                print(f"[{done_count}/{total}] {pid} -> {tech}", flush=True)
+            else:
+                print(f"[{done_count}/{total}] {pid} (failed)", flush=True)
+
+
+# Backwards compatibility alias
+getConceptCards = process
+
+
+if __name__ == "__main__":
+    import argparse
+    parser = argparse.ArgumentParser(description="Extract ConceptCards using LLM")
+    parser.add_argument("--limit", type=int, default=None, help="Max problems to process")
+    parser.add_argument("--concurrency", type=int, default=1, help="Async concurrency (default 1 for local Ollama)")
+    parser.add_argument("--platform", type=str, default=None, help="Filter by platform (e.g. leetcode, codeforces, atcoder)")
+    args = parser.parse_args()
+    asyncio.run(process(concurrency=args.concurrency, limit=args.limit, platform=args.platform))
