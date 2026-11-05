@@ -14,6 +14,7 @@ from qdrant_client.http import models as qm
 from core.schema import DATA,load_all
 from core.Distillation import CARDS,card_to_text
 from core.MethodCard import METHODS,method_to_text
+from models.embedding_model import embeddings
 import json,re
 import pickle
 
@@ -22,12 +23,6 @@ import os
 COLLECTION = "dsa_problems"
 QDRANT_URL = "http://localhost:6333"
 DIM = 1536
-
-def get_embeddings():
-    key = os.getenv("OPENAI_API_KEY") or "sk-dummy"
-    return OpenAIEmbeddings(model="text-embedding-3-small", dimensions=DIM, api_key=key)
-
-
 
 def _load(path):
     if not path.exists():
@@ -52,10 +47,10 @@ def build_records():
             "statement_text": card_to_text(p["title"], p["platform"], c),
             "method_text": method_to_text(p["title"], p["platform"], m) if m else None,
             "payload": {
+                #concept side
                 "problem_id": pid,
                 "platform": p["platform"],
                 "title": p["title"],
-                "url": p["url"],
                 "difficulty": p.get("difficulty") if p.get("difficulty") is not None else -1,
                 "core_technique": c["core_technique"],
                 "concept_tags": c.get("canonical_tags") or [],
@@ -70,7 +65,6 @@ def build_records():
                 "steps": (m or {}).get("steps"),
                 "transferable_skill": (m or {}).get("transferable_skill"),
                 "fingerprint": (m_rec or {}).get("fingerprint", {}),
-                "sol_source": (m_rec or {}).get("sol_source"),
             },
         })
     return records
@@ -80,7 +74,7 @@ def main(batch: int =128):
     records=build_records()
     nm=sum(1 for r in records if r["method_text"])
     print(f"{len(records)} problems, {nm} with a method view")
-    model = get_embeddings()
+    model = embeddings
     client = QdrantClient(url=QDRANT_URL, timeout=120)
 
     if client.collection_exists(COLLECTION):

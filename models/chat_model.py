@@ -2,7 +2,7 @@ from langchain_ollama import ChatOllama
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 
-llm=ChatOllama(model="qwen2.5-coder:7b", temperature=0.7)
+llm=ChatOllama(model="qwen2.5-coder:7b", temperature=0.2)
 
 prompt = ChatPromptTemplate.from_messages([
     ("system", "You are a helpful assistant specialized in coding."),
