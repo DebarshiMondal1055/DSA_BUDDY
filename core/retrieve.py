@@ -1,6 +1,9 @@
 from __future__ import annotations
 import sys
 from pathlib import Path
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # Add project root to sys.path so 'core' module can be imported regardless of execution location
 ROOT = Path(__file__).resolve().parent.parent
@@ -15,10 +18,11 @@ from langchain_classic.retrievers import BM25Retriever
 from qdrant_client import QdrantClient
 from qdrant_client.http import models as qm
 from sentence_transformers import CrossEncoder
-from langchain.chat_models import init_chat_model
+from models.chat_model import llm
 from langchain_core.prompts import ChatPromptTemplate
 from core.schema import DATA, clean_text
-from core.embedindex import COLLECTION, QDRANT_URL, get_embeddings
+from core.embedindex import COLLECTION, QDRANT_URL
+from models.embedding_model import embeddings
 from core.Distillation import build_chain as build_concept_chain, VOCAB, card_to_text
 from core.MethodCard import (MethodCard, METHOD_KEYS, PROMPT as METHOD_PROMPT,
                          method_to_text, fingerprint, fp_similarity)
@@ -36,20 +40,21 @@ def reranker():
 
 class SimilarProblemSearch:
     def __init__(self, model: str = "openai:gpt-5-mini"):
-        self.emb = get_embeddings()
+        self.emb =  embeddings
         self.client = QdrantClient(url=QDRANT_URL, timeout=60)
         self.concept_chain = build_concept_chain(model)
-        llm = init_chat_model(model, temperature=0)
         self.method_chain = METHOD_PROMPT | llm.with_structured_output(MethodCard)
         self.llm = llm
         with (DATA / "bm25_docs.pkl").open("rb") as f:
             self.bm25 = BM25Retriever.from_documents(pickle.load(f), k=60)
+        reranker()
+        self.emb.embed_query('warmup')
 
     # ------------------------------------------------------------ input
-    def resolve(self, query: str) -> dict:
+    def resolve(self, query: str,platform : str|None =None) -> dict:
         if query.strip().startswith("http"):
             return self._fetch_url(query.strip())
-        return {"title": "(pasted)", "statement": query, "platform": None, "tags": []}
+        return {"title": "(pasted)", "statement": query, "platform": platform, "tags": []}
 
     def _fetch_url(self, url: str) -> dict:
         h = {"User-Agent": "Mozilla/5.0 (compatible; dsa-similarity/0.1)"}
@@ -70,7 +75,6 @@ class SimilarProblemSearch:
                 "statement": clean_text(node.get_text("\n")) if node else "",
                 "platform": plat, "tags": []}
 
-    # ------------------------------------------------------------ query cards
     def _build_query(self, src: dict, solution_code: str | None):
         concept = self.concept_chain.invoke({
             "vocab": VOCAB, "title": src["title"], "difficulty": None,
@@ -97,13 +101,18 @@ class SimilarProblemSearch:
         hits = self.client.query_points(
             COLLECTION, query=vec, using=view, limit=k,
             query_filter=flt, with_payload=True).points
-        return [Document(page_content=h.payload.get("steps") or h.payload["reduction"],
-                         metadata=h.payload) for h in hits]
+        docs=[]
+
+        for h in hits:
+            raw = h.payload.get("steps") or h.payload.get("reduction") or ""
+            content = "\n".join(raw) if isinstance(raw, list) else str(raw)
+            docs.append(Document(page_content=content, metadata=h.payload))
+        return docs            
 
     def search(self, query  : str, k: int = 12, mode: str = "both",
-               solution_code: str | None = None, exclude_same_platform: bool = True,
-               per_platform_min:int=3,difficulty_window: int | None = None):
-        src = self.resolve(query)
+               solution_code: str | None = None, exclude_same_platform: bool = False,
+               per_platform_min:int=3,difficulty_window: int | None = None,platform : str | None = None):
+        src = self.resolve(query,platform)
         concept, method, fp = self._build_query(src, solution_code)
         c_text = card_to_text(src["title"], src["platform"] or "unknown", concept)
         m_text = method_to_text(src["title"], src["platform"] or "unknown", method)
@@ -205,18 +214,29 @@ class SimilarProblemSearch:
                        "clause on what the candidate adds or changes. No preamble."),
             ("human", "SOURCE METHOD:\n{q}\n\nCANDIDATE:\n{c}"),
         ])
-        q = (f"{', '.join(qmethod['method_keys'])} | {qmethod['steps']} | "
+
+        q_steps_raw = qmethod.get("steps") or ""
+        q_steps = "\n".join(q_steps_raw) if isinstance(q_steps_raw, list) else str(q_steps_raw)
+
+        q = (f"{', '.join(qmethod['method_keys'])} | {q_steps} | "
              f"state={qmethod.get('state_signature')} | "
              f"primitives={', '.join(qmethod.get('primitives') or [])}")
+
+        def _fmt_cand(d):
+            raw = d.metadata.get("steps") or d.metadata.get("reduction") or ""
+            txt = "\n".join(raw) if isinstance(raw, list) else str(raw)
+            return f"{txt}\nmethod={d.metadata.get('method_keys')}"
+
         msgs = (prompt | self.llm).batch(
-            [{"q": q, "c": (d.metadata.get("steps") or d.metadata["reduction"])
-              + f"\nmethod={d.metadata.get('method_keys')}"} for d in docs])
+            [{"q": q, "c": _fmt_cand(d)} for d in docs]
+        )
+
         out = []
         for d, msg in zip(docs, msgs):
             m = d.metadata
             out.append({
                 "problem_id": m["problem_id"], "title": m["title"],
-                "platform": m["platform"], "url": m["url"],
+                "platform": m["platform"], "url": m.get("url"),
                 "difficulty": m["difficulty"],
                 "method_keys": m.get("method_keys") or [],
                 "concept_tags": m.get("concept_tags") or [],

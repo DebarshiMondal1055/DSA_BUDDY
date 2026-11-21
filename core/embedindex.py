@@ -56,7 +56,7 @@ def build_records():
                 "concept_tags": c.get("canonical_tags") or [],
                 "platform_tags": p.get("tags") or [],
                 "reduction": c["reduction"],
-                "complexity": c["complexity"],
+                "complexity": c["complexity"], 
                 # method side
                 "has_method": bool(m),
                 "method_keys": (m or {}).get("method_keys", []),

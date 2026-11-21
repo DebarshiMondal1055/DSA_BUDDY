@@ -1,0 +1,34 @@
+# ==============================================================================
+# DSA_BUDDY - Requirements
+# ==============================================================================
+
+# Web Framework & API Server
+fastapi>=0.115.0
+uvicorn>=0.30.0
+pydantic>=2.10.0
+
+# LLM & Agent Framework (LangChain, Ollama, OpenAI)
+langchain>=0.3.0
+langchain-core>=0.3.0
+langchain-classic>=1.0.8
+langchain-ollama>=0.2.0
+langchain-openai>=0.2.0
+ollama>=0.4.0
+openai>=1.50.0
+
+# Vector Database, Embeddings & Retrieval
+qdrant-client>=1.12.0
+sentence-transformers>=3.0.0
+rank-bm25>=0.2.2
+torch>=2.4.0
+
+# Web Scraping & Ingestion
+requests>=2.31.0
+beautifulsoup4>=4.12.0
+lxml>=5.0.0
+datasets>=3.0.0
+
+# Utilities & CLI
+python-dotenv>=1.0.0
+tqdm>=4.66.0
+rich>=13.0.0
