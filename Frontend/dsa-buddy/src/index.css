@@ -1,0 +1,104 @@
+/* ==========================================================================
+   DSA Buddy - Global Theme & Reset
+   ========================================================================== */
+
+:root {
+  --bg-main: #0a0e17;
+  --bg-card: #111827;
+  --bg-card-hover: #172033;
+  --bg-input: #0b1120;
+  --border-color: rgba(255, 255, 255, 0.08);
+  --border-color-light: rgba(255, 255, 255, 0.15);
+  --border-accent: rgba(99, 102, 241, 0.4);
+
+  --text-main: #f8fafc;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  --text-accent: #818cf8;
+
+  --accent-primary: #6366f1;
+  --accent-primary-hover: #4f46e5;
+  --accent-glow: rgba(99, 102, 241, 0.25);
+
+  --lc-color: #f59e0b;
+  --lc-bg: rgba(245, 158, 11, 0.12);
+  --lc-border: rgba(245, 158, 11, 0.3);
+
+  --cf-color: #38bdf8;
+  --cf-bg: rgba(56, 189, 248, 0.12);
+  --cf-border: rgba(56, 189, 248, 0.3);
+
+  --ac-color: #34d399;
+  --ac-bg: rgba(52, 211, 153, 0.12);
+  --ac-border: rgba(52, 211, 153, 0.3);
+
+  --success: #10b981;
+  --warning: #f59e0b;
+  --danger: #ef4444;
+
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background-color: var(--bg-main);
+  color: var(--text-main);
+  font-family: var(--font-sans);
+  line-height: 1.6;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+code, kbd, samp, pre {
+  font-family: var(--font-mono);
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+}
+
+svg {
+  display: inline-block;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+
+.w-3 { width: 12px; height: 12px; }
+.w-3\.5 { width: 14px; height: 14px; }
+.w-4 { width: 16px; height: 16px; }
+.w-5 { width: 20px; height: 20px; }
+.w-6 { width: 24px; height: 24px; }
+
+input, textarea, select {
+  font-family: inherit;
+  color: inherit;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg-main);
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
