@@ -288,6 +288,360 @@
   color: #c7d2fe;
 }
 
+/* Ladder mode tab highlight */
+.ladder-tab.active {
+  background: rgba(16, 185, 129, 0.15) !important;
+  border-color: rgba(16, 185, 129, 0.4) !important;
+  color: #6ee7b7 !important;
+}
+
+.ladder-pill {
+  background: rgba(16, 185, 129, 0.25) !important;
+  color: #a7f3d0 !important;
+}
+
+/* Ladder Mode Form */
+.ladder-mode-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.ladder-input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.method-text-input {
+  width: 100%;
+  background: var(--bg-input);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 14px 16px;
+  font-size: 1rem;
+  color: #38bdf8;
+  font-family: var(--font-mono);
+}
+.method-text-input:focus {
+  outline: none;
+  border-color: #10b981;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.25);
+}
+
+.popular-methods-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 6px;
+  flex-wrap: wrap;
+}
+
+.popular-methods-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+.popular-methods-chips {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.method-chip-btn {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 0.76rem;
+  padding: 4px 10px;
+  border-radius: 6px;
+  transition: all 0.2s;
+}
+.method-chip-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: var(--border-color-light);
+  color: #fff;
+}
+.method-chip-btn.selected {
+  background: rgba(16, 185, 129, 0.15);
+  border-color: #10b981;
+  color: #6ee7b7;
+}
+
+.ladder-controls-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 20px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border-color);
+  padding: 16px;
+  border-radius: 12px;
+}
+
+.number-input {
+  width: 100%;
+  background: var(--bg-input);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 0.88rem;
+  color: #fff;
+}
+.number-input:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+}
+
+.search-submit-btn.ladder-submit {
+  background: linear-gradient(135deg, #059669 0%, #0284c7 100%);
+  box-shadow: 0 4px 18px rgba(5, 150, 105, 0.35);
+}
+.search-submit-btn.ladder-submit:hover:not(:disabled) {
+  box-shadow: 0 6px 22px rgba(5, 150, 105, 0.45);
+}
+
+/* ==========================================================================
+   Practice Ladder View (Inline Page Results)
+   ========================================================================== */
+.ladder-view-container {
+  margin-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.ladder-header-card {
+  background: linear-gradient(180deg, #101c2e 0%, #0c1422 100%);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  border-radius: 16px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.ladder-tag-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.ladder-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(16, 185, 129, 0.2);
+  border: 1px solid rgba(16, 185, 129, 0.4);
+  color: #6ee7b7;
+  padding: 3px 10px;
+  border-radius: 6px;
+  font-size: 0.76rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.ladder-method-name {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #38bdf8;
+  background: rgba(56, 189, 248, 0.1);
+  padding: 3px 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(56, 189, 248, 0.3);
+}
+
+.ladder-title {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: #fff;
+  margin-top: 4px;
+}
+
+.ladder-desc {
+  font-size: 0.92rem;
+  color: var(--text-secondary);
+}
+
+.ladder-stats-row {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex-wrap: wrap;
+  padding-top: 8px;
+  border-top: 1px solid var(--border-color);
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.ladder-stat-item strong {
+  color: #fff;
+}
+
+.ladder-platform-breakdown {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.ladder-filter-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 8px;
+  flex-wrap: wrap;
+}
+
+/* Ladder Rows */
+.ladder-problems-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ladder-row-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  transition: all 0.2s ease;
+}
+.ladder-row-card:hover {
+  background: var(--bg-card-hover);
+  transform: translateX(4px);
+}
+
+.ladder-row-card.leetcode-border:hover {
+  border-color: var(--lc-border);
+}
+.ladder-row-card.codeforces-border:hover {
+  border-color: var(--cf-border);
+}
+.ladder-row-card.atcoder-border:hover {
+  border-color: var(--ac-border);
+}
+
+.ladder-row-step {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 170px;
+  flex-shrink: 0;
+}
+
+.step-num {
+  font-size: 0.88rem;
+  font-weight: 800;
+  color: var(--text-muted);
+  width: 28px;
+}
+
+.ladder-row-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ladder-problem-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #fff;
+}
+
+.ladder-method-keys {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.mini-method-tag {
+  font-size: 0.72rem;
+  color: #a5b4fc;
+  background: rgba(99, 102, 241, 0.1);
+  padding: 1px 6px;
+  border-radius: 4px;
+  border: 1px solid rgba(99, 102, 241, 0.2);
+}
+
+.ladder-row-right {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex-shrink: 0;
+}
+
+.difficulty-pill-box {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+.diff-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.diff-value {
+  font-size: 0.92rem;
+  font-weight: 800;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.ladder-action-buttons {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ladder-primary-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(16, 185, 129, 0.15);
+  border: 1px solid rgba(16, 185, 129, 0.4);
+  color: #6ee7b7;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+.ladder-primary-btn:hover {
+  background: rgba(16, 185, 129, 0.25);
+  border-color: #10b981;
+}
+
+.ladder-secondary-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  transition: all 0.2s;
+}
+.ladder-secondary-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
 /* ==========================================================================
    Platform Input Section
    ========================================================================== */

@@ -46,7 +46,8 @@ class SimilarProblemSearch:
         self.method_chain = METHOD_PROMPT | llm.with_structured_output(MethodCard)
         self.llm = llm
         with (DATA / "bm25_docs.pkl").open("rb") as f:
-            self.bm25 = BM25Retriever.from_documents(pickle.load(f), k=60)
+            self.docs = pickle.load(f)
+            self.bm25 = BM25Retriever.from_documents(self.docs, k=60)
         reranker()
         self.emb.embed_query('warmup')
 
@@ -252,21 +253,42 @@ class SimilarProblemSearch:
     def ladder(self, method_key: str, around: int | None = None, n: int = 12):
         """Practice mode: every problem using this exact method, easiest first,
         spread across platforms. Pure metadata query, no LLM, instant."""
-        must = [qm.FieldCondition(key="method_keys",
-                                  match=qm.MatchValue(value=method_key))]
-        if around is not None:
-            must.append(qm.FieldCondition(
-                key="difficulty", range=qm.Range(gte=around - 20, lte=around + 20)))
-        pts, _ = self.client.scroll(COLLECTION, scroll_filter=qm.Filter(must=must),
-                                    limit=400, with_payload=True)
-        rows = sorted((p.payload for p in pts), key=lambda r: r["difficulty"])
+        rows = []
+        try:
+            must = [qm.FieldCondition(key="method_keys",
+                                      match=qm.MatchValue(value=method_key))]
+            if around is not None:
+                must.append(qm.FieldCondition(
+                    key="difficulty", range=qm.Range(gte=around - 150, lte=around + 150)))
+            pts, _ = self.client.scroll(COLLECTION, scroll_filter=qm.Filter(must=must),
+                                        limit=400, with_payload=True)
+            rows = [p.payload for p in pts]
+        except Exception as e:
+            # Resilient fallback to local docs if Qdrant collection is unavailable
+            mk_clean = method_key.strip().lower()
+            for d in getattr(self, "docs", []):
+                meta = d.metadata
+                keys = [str(k).lower() for k in (meta.get("method_keys") or [])]
+                if any(mk_clean == k or mk_clean in k for k in keys):
+                    diff = meta.get("difficulty")
+                    if around is not None and diff is not None and diff != -1:
+                        if not (around - 150 <= diff <= around + 150):
+                            continue
+                    rows.append(meta)
+
+        def _sort_key(r):
+            d = r.get("difficulty")
+            return d if d is not None and d >= 0 else 99999
+
+        sorted_rows = sorted(rows, key=_sort_key)
         out, per = [], defaultdict(int)
-        for r in rows:
-            if per[r["platform"]] >= n // 3 + 1:
+        for r in sorted_rows:
+            plat = r.get("platform") or "unknown"
+            if per[plat] >= n // 3 + 1:
                 continue
-            out.append({k: r[k] for k in ("problem_id", "title", "platform",
-                                          "url", "difficulty", "method_keys")})
-            per[r["platform"]] += 1
+            out.append({k: r.get(k) for k in ("problem_id", "title", "platform",
+                                              "difficulty", "method_keys")})
+            per[plat] += 1
             if len(out) >= n:
                 break
-        return sorted(out, key=lambda r: r["difficulty"])
+        return sorted(out, key=_sort_key)

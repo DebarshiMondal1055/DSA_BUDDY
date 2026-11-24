@@ -3,9 +3,10 @@ import Navbar from './components/Navbar'
 import SearchPanel from './components/SearchPanel'
 import SourceAnalysisCard from './components/SourceAnalysisCard'
 import ResultsList from './components/ResultsList'
+import PracticeLadderView from './components/PracticeLadderView'
 import LoadingState from './components/LoadingState'
 import LadderModal from './components/LadderModal'
-import { checkHealth, searchSimilar } from './services/api'
+import { checkHealth, searchSimilar, fetchLadder } from './services/api'
 import { AlertCircleIcon } from './components/Icons'
 import './App.css'
 
@@ -15,9 +16,11 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState(null)
   const [data, setData] = useState(null)
+  const [ladderData, setLadderData] = useState(null)
+  const [ladderActiveKey, setLadderActiveKey] = useState('')
   const [ladderMethodKey, setLadderMethodKey] = useState(null)
 
-  // Check health on mount and provide refresh capability
+  // Check health on mount and provide periodic polling
   const handleCheckHealth = useCallback(async () => {
     setCheckingHealth(true)
     try {
@@ -44,10 +47,11 @@ export default function App() {
     }
   }, [])
 
-  // Handle Search Submission
+  // Handle Search Similar Submission
   const handleSearch = async (queryPayload) => {
     setIsLoading(true)
     setError(null)
+    setLadderData(null)
 
     try {
       const res = await searchSimilar(queryPayload)
@@ -57,6 +61,28 @@ export default function App() {
       setError(
         err.message ||
           'Failed to retrieve similar problems. Ensure your backend is running at http://localhost:8000.'
+      )
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  // Handle Practice Ladder Submission
+  const handleSearchLadder = async ({ methodKey, around, n }) => {
+    setIsLoading(true)
+    setError(null)
+    setData(null)
+
+    try {
+      const res = await fetchLadder(methodKey, around, n)
+      const list = Array.isArray(res) ? res : res?.data || []
+      setLadderData(list)
+      setLadderActiveKey(methodKey)
+    } catch (err) {
+      console.error('Ladder fetch error:', err)
+      setError(
+        err.message ||
+          'Failed to retrieve practice ladder. Ensure your backend is running at http://localhost:8000.'
       )
     } finally {
       setIsLoading(false)
@@ -104,15 +130,19 @@ export default function App() {
           </p>
         </div>
 
-        {/* Search & Query Input Panel */}
-        <SearchPanel onSearch={handleSearch} isLoading={isLoading} />
+        {/* Search & Query Input Panel (Includes Practise Problem mode) */}
+        <SearchPanel
+          onSearch={handleSearch}
+          onSearchLadder={handleSearchLadder}
+          isLoading={isLoading}
+        />
 
         {/* Error Notification */}
         {error && (
           <div className="error-alert">
             <AlertCircleIcon className="w-5 h-5 flex-shrink-0" />
             <div className="error-content">
-              <h4>Retrieval Failed</h4>
+              <h4>Request Failed</h4>
               <p>{error}</p>
             </div>
             <button
@@ -128,7 +158,24 @@ export default function App() {
         {/* Loading Progress State */}
         {isLoading && <LoadingState />}
 
-        {/* Results Section */}
+        {/* Mode 1 Results: Practice Ladder View */}
+        {!isLoading && ladderData && (
+          <PracticeLadderView
+            ladder={ladderData}
+            methodKey={ladderActiveKey}
+            onSearchSimilar={(query, plat) =>
+              handleSearch({
+                query,
+                platform: plat,
+                mode: 'both',
+                k: 12,
+                per_platform_min: 3,
+              })
+            }
+          />
+        )}
+
+        {/* Mode 2 Results: Similar Problems View */}
         {!isLoading && data && (
           <div className="results-wrapper">
             {/* Analyzed Source Problem Details (Concept + Method Cards) */}
@@ -142,7 +189,7 @@ export default function App() {
           </div>
         )}
 
-        {/* Practice Ladder Modal */}
+        {/* Practice Ladder Modal (Triggered by clicking shared method chip) */}
         {ladderMethodKey && (
           <LadderModal
             methodKey={ladderMethodKey}
